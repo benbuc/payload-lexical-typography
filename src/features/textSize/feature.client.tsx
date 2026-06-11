@@ -2,7 +2,13 @@
 
 import { type ToolbarGroup, type ToolbarGroupItem } from "@payloadcms/richtext-lexical";
 import { createClientFeature } from "@payloadcms/richtext-lexical/client";
-import { COMMAND_PRIORITY_CRITICAL, type BaseSelection } from "@payloadcms/richtext-lexical/lexical";
+import {
+  $getNodeByKey,
+  $isTextNode,
+  COMMAND_PRIORITY_CRITICAL,
+  TextNode,
+  type BaseSelection,
+} from "@payloadcms/richtext-lexical/lexical";
 import { useLexicalComposerContext } from "@payloadcms/richtext-lexical/lexical/react/LexicalComposerContext";
 import {
   $getSelectionStyleValueForProperty,
@@ -16,6 +22,7 @@ import { Dropdown } from "./components/TextSizeDropdown";
 import { TextSizeIcon } from "./components/TextSizeIcon";
 
 import { getSelection } from "../../utils/getSelection";
+import { getStyleValue } from "../../utils/getStyleValue";
 
 export type TextSizeFeatureProps = {
   hideAttribution?: boolean;
@@ -72,7 +79,26 @@ export const TextSizeClientFeature = createClientFeature<TextSizeFeatureProps, T
           const [editor] = useLexicalComposerContext();
 
           useEffect(() => {
-            return editor.registerCommand(
+            const unregisterMutation = editor.registerMutationListener(TextNode, (mutatedNodes) => {
+              editor.getEditorState().read(() => {
+                for (const [nodeKey, mutation] of mutatedNodes) {
+                  if (mutation === "destroyed") continue;
+                  const node = $getNodeByKey(nodeKey);
+                  const dom = editor.getElementByKey(nodeKey);
+                  if (!node || !dom || !$isTextNode(node)) continue;
+
+                  const fontSize = getStyleValue(node.getStyle(), "font-size");
+
+                  if (fontSize) {
+                    dom.style.fontSize = fontSize;
+                  } else {
+                    dom.style.removeProperty("font-size");
+                  }
+                }
+              });
+            });
+
+            const unregisterCommand = editor.registerCommand(
               TEXT_SIZE_COMMAND,
               (payload) => {
                 editor.update(() => {
@@ -85,6 +111,11 @@ export const TextSizeClientFeature = createClientFeature<TextSizeFeatureProps, T
               },
               COMMAND_PRIORITY_CRITICAL,
             );
+
+            return () => {
+              unregisterMutation();
+              unregisterCommand();
+            };
           }, [editor]);
 
           return null;

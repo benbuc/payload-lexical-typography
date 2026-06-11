@@ -2,7 +2,13 @@
 
 import { type ToolbarGroup, type ToolbarGroupItem } from "@payloadcms/richtext-lexical";
 import { createClientFeature } from "@payloadcms/richtext-lexical/client";
-import { COMMAND_PRIORITY_CRITICAL, type BaseSelection } from "@payloadcms/richtext-lexical/lexical";
+import {
+  $getNodeByKey,
+  $isTextNode,
+  COMMAND_PRIORITY_CRITICAL,
+  TextNode,
+  type BaseSelection,
+} from "@payloadcms/richtext-lexical/lexical";
 import { useLexicalComposerContext } from "@payloadcms/richtext-lexical/lexical/react/LexicalComposerContext";
 import {
   $getSelectionStyleValueForProperty,
@@ -16,6 +22,7 @@ import { TextColorDropdown } from "./components/TextColorDropdown";
 import { TextColorIcon } from "./components/TextColorIcon";
 
 import { getSelection } from "../../utils/getSelection";
+import { getStyleValue } from "../../utils/getStyleValue";
 
 export type TextColorFeatureProps = {
   colors?: string[] | { value: string; label: string }[];
@@ -76,7 +83,26 @@ export const TextColorClientFeature = createClientFeature<TextColorFeatureProps,
             const [editor] = useLexicalComposerContext();
 
             useEffect(() => {
-              return editor.registerCommand(
+              const unregisterMutation = editor.registerMutationListener(TextNode, (mutatedNodes) => {
+                editor.getEditorState().read(() => {
+                  for (const [nodeKey, mutation] of mutatedNodes) {
+                    if (mutation === "destroyed") continue;
+                    const node = $getNodeByKey(nodeKey);
+                    const dom = editor.getElementByKey(nodeKey);
+                    if (!node || !dom || !$isTextNode(node)) continue;
+
+                    const color = getStyleValue(node.getStyle(), "color");
+
+                    if (color) {
+                      dom.style.color = color;
+                    } else {
+                      dom.style.removeProperty("color");
+                    }
+                  }
+                });
+              });
+
+              const unregisterCommand = editor.registerCommand(
                 TEXT_COLOR_COMMAND,
                 (payload) => {
                   editor.update(() => {
@@ -89,6 +115,11 @@ export const TextColorClientFeature = createClientFeature<TextColorFeatureProps,
                 },
                 COMMAND_PRIORITY_CRITICAL,
               );
+
+              return () => {
+                unregisterMutation();
+                unregisterCommand();
+              };
             }, [editor]);
 
             return null;
