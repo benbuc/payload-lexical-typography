@@ -22,6 +22,7 @@ import { Dropdown } from "./components/TextSizeDropdown";
 import { TextSizeIcon } from "./components/TextSizeIcon";
 
 import { getSelection } from "../../utils/getSelection";
+import { getStyleValue } from "../../utils/getStyleValue";
 
 export type TextSizeFeatureProps = {
   hideAttribution?: boolean;
@@ -86,9 +87,7 @@ export const TextSizeClientFeature = createClientFeature<TextSizeFeatureProps, T
                   const dom = editor.getElementByKey(nodeKey);
                   if (!node || !dom || !$isTextNode(node)) continue;
 
-                  const style = node.getStyle();
-                  const match = /(?:^|;)\s?font-size: ([^;]+)/.exec(style);
-                  const fontSize = match ? match[1].trim() : "";
+                  const fontSize = getStyleValue(node.getStyle(), "font-size");
 
                   if (fontSize) {
                     dom.style.fontSize = fontSize;

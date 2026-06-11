@@ -22,6 +22,7 @@ import { TextColorDropdown } from "./components/TextColorDropdown";
 import { TextColorIcon } from "./components/TextColorIcon";
 
 import { getSelection } from "../../utils/getSelection";
+import { getStyleValue } from "../../utils/getStyleValue";
 
 export type TextColorFeatureProps = {
   colors?: string[] | { value: string; label: string }[];
@@ -90,9 +91,7 @@ export const TextColorClientFeature = createClientFeature<TextColorFeatureProps,
                     const dom = editor.getElementByKey(nodeKey);
                     if (!node || !dom || !$isTextNode(node)) continue;
 
-                    const style = node.getStyle();
-                    const match = /(?:^|;)\s?color: ([^;]+)/.exec(style);
-                    const color = match ? match[1].trim() : "";
+                    const color = getStyleValue(node.getStyle(), "color");
 
                     if (color) {
                       dom.style.color = color;
